@@ -1,6 +1,6 @@
 ﻿using Google.OrTools.ConstraintSolver;
 
-const long thresholdDistance = 200L;
+const long thresholdDistance = 200;
 const string distanceDimensionName = "Distance";
 
 DataModel data = new();
@@ -8,7 +8,7 @@ DataModel data = new();
 RoutingIndexManager manager = new(data.DistanceMatrix.GetLength(0), data.VehicleNumber, data.Depot);
 RoutingModel routing = new(manager);
 
-int transitCallBackIndex = routing.RegisterTransitCallback((fromIndex, toIndex) =>
+var transitCallBackIndex = routing.RegisterTransitCallback((fromIndex, toIndex) =>
 {
     var fromNode = manager.IndexToNode(fromIndex);
     var toNode = manager.IndexToNode(toIndex);
@@ -19,36 +19,40 @@ int transitCallBackIndex = routing.RegisterTransitCallback((fromIndex, toIndex) 
 routing.SetArcCostEvaluatorOfAllVehicles(transitCallBackIndex);
 routing.AddDimension(transitCallBackIndex, 0, long.MaxValue, true, distanceDimensionName);
 
-RoutingDimension distanceDimension = routing.GetMutableDimension(distanceDimensionName);
-Solver solver = routing.solver();
+var distanceDimension = routing.GetMutableDimension(distanceDimensionName);
 
-for (int i = 0; i < data.VehicleNumber; i++)
+var nodesCount = data.DistanceMatrix.GetLength(0);
+var solver = routing.solver();
+
+for (var from = 0; from < nodesCount; from++)
 {
-    long index = routing.End(i);
-    Console.WriteLine(manager.IndexToNode(index));
-    IntVar? indexVar = distanceDimension.CumulVar(index);
-    solver.Add(solver.MakeLessOrEqual(indexVar, thresholdDistance));
-    // Another solution: distanceDimension.CumulVar(index).SetMax(thresholdDistance);
+    for (var to = 0; to < nodesCount; to++)
+    {
+        if (from != to)
+        {
+            var distance = data.DistanceMatrix[from, to];
+            if (distance > thresholdDistance)
+            {
+                var fromIndex = manager.NodeToIndex(from);
+                var toIndex = manager.NodeToIndex(to);
+
+                solver.Add(solver.MakeLessOrEqual(solver.MakeDifference(distanceDimension.CumulVar(fromIndex), distanceDimension.CumulVar(toIndex)), thresholdDistance));
+            }
+        }
+    }
 }
 
-RoutingSearchParameters searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
+var searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
 searchParameters.FirstSolutionStrategy = FirstSolutionStrategy.Types.Value.PathCheapestArc;
 searchParameters.LogSearch = true;
 
-Assignment solution = routing.SolveWithParameters(searchParameters);
-
-for (int i = 0; i < data.VehicleNumber; i += 1)
-{
-    long endIndex = routing.End(i);
-    var endIndexVar = distanceDimension.CumulVar(endIndex).Var();
-}
+var solution = routing.SolveWithParameters(searchParameters);
 
 PrintSolution(data, routing, manager, solution);
 
 return;
 
-static void PrintSolution(in DataModel data, in RoutingModel routing, in RoutingIndexManager manager,
-    in Assignment? solution)
+static void PrintSolution(in DataModel data, in RoutingModel routing, in RoutingIndexManager manager, in Assignment? solution)
 {
     if (solution is null)
     {
@@ -61,12 +65,12 @@ static void PrintSolution(in DataModel data, in RoutingModel routing, in Routing
     long maxRouteDistance = 0;
     long totalDistance = 0;
 
-    for (int i = 0; i < data.VehicleNumber; ++i)
+    for (var i = 0; i < data.VehicleNumber; ++i)
     {
         Console.WriteLine("Route for Vehicle {0}:", i);
         long routeDistance = 0;
         var index = routing.Start(i);
-        while (routing.IsEnd(index) == false)
+        while (routing.IsEnd(index) is false)
         {
             Console.Write("{0} -> ", manager.IndexToNode((int)index));
             var previousIndex = index;
@@ -85,11 +89,11 @@ static void PrintSolution(in DataModel data, in RoutingModel routing, in Routing
 internal class DataModel
 {
     public long[,] DistanceMatrix = {
-        { 0, 270, 90 },
-        { 270, 0, 150 },
-        { 90, 150, 0 }
+        { 0, 300, 50 },
+        { 300, 0, 60 },
+        { 50, 60, 0 }
     };
 
     public int VehicleNumber = 2;
     public int Depot = 0;
-};
+}

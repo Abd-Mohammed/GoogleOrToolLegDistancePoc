@@ -1,5 +1,8 @@
 # Google Or Toole Leg Distance Poc
 
+### System should generate routes that adhere to the determined maximum allowed distance between consecutive stops (Example: if the leg distance is 2 km, then the leg distance for all generated routes should not exceed these 2 km).
+
+
 # Test Cases
 
 ## Test Case 1
